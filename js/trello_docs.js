@@ -45,7 +45,16 @@ var router=function(){
 	var hash=location.hash.replace("#","");
 	if (hash!=="")
 	{
-		getBoard(hash);
+    var hashArray = hash.split("!");
+    if(hashArray[1]){
+		  getBoard(hashArray[0], _.chain(hashArray[1].split("&")).map(function(option){
+        option = option.split("=");
+        option[1] = option[1].split(",");
+        return option;
+      }).object().value());
+    } else {
+      listOptions(hashArray[0]);
+    }
 	}else {
 		if(window.myself){
 			listBoards();
@@ -90,13 +99,38 @@ var listBoards=function(){
 
 };
 
-var getBoard=function(board){
+var listOptions=function(board){
+  $("#view").empty();
+  $("#view").html("<h1>Loading ...</h1>");
+  Trello.get("/boards/"+board,{cards:"open",lists:"open",checklists:"all",members:"all"},function(board){
+    $("#view").html("<h1>Loading ...OK!!</h1>");
+    window.doc=board; //debug
+    window.title=board.name + " Options";
+    var labels = _.values(board.labelNames);
+    var columns=["Name","Description","Due Date","Checklists","Members","Labels","Votes"];
+    board.labels = _.map(labels, function(label){
+      return {name: label};
+    });
+    board.displayColumns = _.map(columns, function(column){
+      return {name: column};
+    });
+    var template = "<h1>"+title+"</h1><div id='options'><div id='listOptions'><b>Lists: </b>{{#lists}}<span class='on checkItem' id='{{id}}'>{{name}}</span>{{/lists}}</div><div id='labelOptions'><b>Labels: </b>{{#labels}}<span class='on checkItem'>{{name}}</span>{{/labels}}</div><div id='columnsOptions'><b>Columns: </b>{{#displayColumns}}<span class='on checkItem'>{{name}}</span>{{/displayColumns}}</div><div id='memberOptions'><b>Members: </b>{{#members}}<span class='on checkItem'>{{fullName}}</span>{{/members}}</div></div>";
+    var str=Mustache.render(template,board);
+    $("#view").html(str);
+  });
+}
+
+var getBoard=function(board, options){
+  console.log(options);
   $("#view").empty();
   $("#view").html("<h1>Loading ...</h1>");
   Trello.get("/boards/"+board,{cards:"open",lists:"open",checklists:"all",members:"all"},function(board){
 	$("#view").html("<h1>Loading ...OK!!</h1>");
 	window.doc=board; //debug
 	window.title=board.name;
+  board.lists = _.filter(board.lists, function(list){
+    return (options.lists[0] === "all"||_.contains(options.lists, list.id));
+  });
 	_.each(board.cards,function(card){ //iterate on cards
 		_.each(card.idChecklists,function(listId){ //iterate on checklists
 			var list=_.find(board.checklists,function(check){ //Find list
@@ -135,10 +169,10 @@ var getBoard=function(board){
 	});//iterate on cards
 
 	// Second Init Cards
-	var listofcards=_.groupBy(board.cards, function(card){
+	var listofcards=_.groupBy(board.cards, function(card){//group cards by ListID
 		return card.idList;
 	});
-	_.each(board.lists,function(list){
+	_.each(board.lists,function(list){//iterate over lists, matching cards
 		list.cards=listofcards[list.id];
 		list.size=list.cards?list.cards.length:0;
 		list.show=(list.size>0);
@@ -171,6 +205,7 @@ var getBoard=function(board){
 	var htmltemplate="<h1><span id='download'></span><span id='trello-link'></span><span id='printme'></span>{{name}} <span class='right'>{{#formatDate}}now{{/formatDate}}</span></h1>{{#lists}}<table><caption><h2>{{name}} <span class='show right'>{{size}}</span></h2></caption>{{#show}}<col width='20%' /><col width='30%' /><col width='5%' /><col width='25%' /><col width='5%' /><col width='10%' /><col width='5%' /><thead><tr>{{#displayColumns}}<th scope='col'>{{.}}</th>{{/displayColumns}}</tr></thead>{{/show}}<tbody>{{#cards}}<tr><td scope='row'><b>{{name}}</b></td><td><div class='comments'>{{#formatComments}}{{desc}}{{/formatComments}}</div></td><td>{{#formatDate}}{{due}}{{/formatDate}}</td><td>{{#checklist}}<div>{{{.}}}</div>{{/checklist}}</td><td>{{#members}}<div>{{.}}</div>{{/members}}</td><td>{{#labels}}<div class='show {{color}}'>{{name}}&nbsp;</div>{{/labels}}</td><td>{{badges.votes}}</td></tr>{{/cards}}</tbody></table>{{/lists}}";
 	var csvtemplate="";//TODO
 
+  console.log('rendering',board);
 	var str=Mustache.render(htmltemplate,board);
 	$("#view").html(str);
 
