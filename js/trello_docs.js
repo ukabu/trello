@@ -273,7 +273,7 @@ var getBoard=function(board, options){
     return function(template) {
       var def={columns:['20', '30', '5', '25', '5', '10', '5']};
       var track = 0;
-      if(options.columns !== "all"){
+      if(options.columns[0] !== "all"){
         _.each(board.displayColumns, function(col, index){
           index = index - track;
           if(!(_.contains(options.columns, col))){
@@ -286,13 +286,13 @@ var getBoard=function(board, options){
       return Mustache.render(template, def);
     }
   }
-  if(options.columns !== "all"){
+  if(options.columns[0] !== "all"){
     board.displayColumns=options.columns;
   }
   board.checkColumn = function(){
     return function(text){
       text = text.split(">>");
-      if(_.contains(options.columns, text[0])){
+      if(options.columns[0] === "all" || _.contains(options.columns, text[0])){
         return text[1];
       }
       return "";
