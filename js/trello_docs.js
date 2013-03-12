@@ -181,8 +181,13 @@ var resizeAlgorithm=function(arr, index){
     var prev = index - 1, next = index + 1;
     if(prev < 0) prev = arr.length - 1;
     if(next > arr.length - 1) next = 0;
-    arr[next] += arr[index]/2;
-    arr[prev] += arr[index]/2;
+    if(arr[next] < arr[prev]){
+      arr[next] += arr[index];
+    } else {
+      arr[prev] += arr[index];
+    }
+    arr.splice(index, 1);
+    return arr;
   }else if(arr.length == 2){
     return [arr[0] + arr[1]];
   }
@@ -268,26 +273,28 @@ var getBoard=function(board, options){
 	};		
 	//
 	// Start Rendering
-	board.displayColumns=["Name","Description","Due Date","Checklists","Members","Labels","Votes"];
+	var defs=["Name","Description","Due Date","Checklists","Members","Labels","Votes"];
   board.sizeColumns = function(){
     return function(template) {
-      var def={columns:['20', '30', '5', '25', '5', '10', '5']};
+      template = "{{#columns}}<col width='{{.}}%' />{{/columns}}";
+      var def={columns:[20, 30, 5, 25, 5, 10, 5]};
       var track = 0;
       if(options.columns[0] !== "all"){
-        _.each(board.displayColumns, function(col, index){
+        _.each(defs, function(col, index){
           index = index - track;
           if(!(_.contains(options.columns, col))){
-            def = resizeAlgorithm(def.columns, index);
+            def.columns = resizeAlgorithm(def.columns, index);
             track ++;
           }
         });
       }
-      console.log(template, def);
       return Mustache.render(template, def);
     }
   }
   if(options.columns[0] !== "all"){
     board.displayColumns=options.columns;
+  } else {
+    board.displayColumns=defs;
   }
   board.checkColumn = function(){
     return function(text){
@@ -298,7 +305,7 @@ var getBoard=function(board, options){
       return "";
     }
   }
-	var htmltemplate="<h1><span id='download'></span><span id='trello-link'></span><span id='printme'></span>{{name}} <span class='right'>{{#formatDate}}now{{/formatDate}}</span></h1>{{#lists}}<table><caption><h2>{{name}} <span class='show right'>{{size}}</span></h2></caption>{{#show}}{{#sizeColumns}}{{#columns}}<col width='{{.}}%' />{{/columns}}{{/sizeColumns}}<thead><tr>{{#displayColumns}}<th scope='col'>{{.}}</th>{{/displayColumns}}</tr></thead>{{/show}}<tbody>{{#cards}}<tr><td scope='row'><b>{{name}}</b></td>{{#checkColumn}}Description>><td><div class='comments'>{{#formatComments}}{{desc}}{{/formatComments}}</div></td>{{/checkColumn}}{{#checkColumn}}Due Date>><td>{{#formatDate}}{{due}}{{/formatDate}}</td>{{/checkColumn}}{{#checkColumn}}Checklists>><td>{{#checklist}}<div>{{{.}}}</div>{{/checklist}}</td>{{/checkColumn}}{{#checkColumn}}Members>><td>{{#members}}<div>{{.}}</div>{{/members}}</td>{{/checkColumn}}{{#checkColumn}}Labels>><td>{{#labels}}<div class='show {{color}}'>{{name}}&nbsp;</div>{{/labels}}</td>{{/checkColumn}}{{#checkColumn}}Votes>><td>{{badges.votes}}</td>{{/checkColumn}}</tr>{{/cards}}</tbody></table>{{/lists}}";
+	var htmltemplate="<h1><span id='download'></span><span id='trello-link'></span><span id='printme'></span>{{name}} <span class='right'>{{#formatDate}}now{{/formatDate}}</span></h1>{{#lists}}<table><caption><h2>{{name}} <span class='show right'>{{size}}</span></h2></caption>{{#show}}{{#sizeColumns}}{{/sizeColumns}}<thead><tr>{{#displayColumns}}<th scope='col'>{{.}}</th>{{/displayColumns}}</tr></thead>{{/show}}<tbody>{{#cards}}<tr><td scope='row'><b>{{name}}</b></td>{{#checkColumn}}Description>><td><div class='comments'>{{#formatComments}}{{desc}}{{/formatComments}}</div></td>{{/checkColumn}}{{#checkColumn}}Due Date>><td>{{#formatDate}}{{due}}{{/formatDate}}</td>{{/checkColumn}}{{#checkColumn}}Checklists>><td>{{#checklist}}<div>{{{.}}}</div>{{/checklist}}</td>{{/checkColumn}}{{#checkColumn}}Members>><td>{{#members}}<div>{{.}}</div>{{/members}}</td>{{/checkColumn}}{{#checkColumn}}Labels>><td>{{#labels}}<div class='show {{color}}'>{{name}}&nbsp;</div>{{/labels}}</td>{{/checkColumn}}{{#checkColumn}}Votes>><td>{{badges.votes}}</td>{{/checkColumn}}</tr>{{/cards}}</tbody></table>{{/lists}}";
 	var csvtemplate="";//TODO
 
   console.log('rendering',board);
