@@ -1,4 +1,12 @@
-Trello2HTML
+Trello2HTML Extended
+===
+
+This is a fork of Trello2HTML. See below for information on the
+original. In this version, you can select which lists to show, which
+members and labels to include, and what information is to be displayed.
+There is a hosted version of this at http://www.kaseymckenna.com/trello/
+
+Trello2HTML (Original)
 ===
 
 You can view detailed Trello Boards and export them to HTML (Save Page doesn't

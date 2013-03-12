@@ -106,18 +106,87 @@ var listOptions=function(board){
     $("#view").html("<h1>Loading ...OK!!</h1>");
     window.doc=board; //debug
     window.title=board.name + " Options";
-    var labels = _.values(board.labelNames);
     var columns=["Name","Description","Due Date","Checklists","Members","Labels","Votes"];
-    board.labels = _.map(labels, function(label){
-      return {name: label};
+    board.labels = _.map(board.labelNames, function(label, color){
+      return {name: label, color: color};
     });
     board.displayColumns = _.map(columns, function(column){
       return {name: column};
     });
-    var template = "<h1>"+title+"</h1><div id='options'><div id='listOptions'><b>Lists: </b>{{#lists}}<span class='on checkItem' id='{{id}}'>{{name}}</span>{{/lists}}</div><div id='labelOptions'><b>Labels: </b>{{#labels}}<span class='on checkItem'>{{name}}</span>{{/labels}}</div><div id='columnsOptions'><b>Columns: </b>{{#displayColumns}}<span class='on checkItem'>{{name}}</span>{{/displayColumns}}</div><div id='memberOptions'><b>Members: </b>{{#members}}<span class='on checkItem'>{{fullName}}</span>{{/members}}</div></div>";
+    var template = "<h1>"+title+"</h1><div id='options'><div id='lists'><b>Lists: </b>{{#lists}}<span class='on checkItem' id='{{id}}'>{{name}}</span>{{/lists}}</div><div id='labels'><b>Labels: </b>{{#labels}}<span class='on checkItem {{color}}' id='{{color}}'>{{name}}</span>{{/labels}}</div><div id='columns'><b>Columns: </b>{{#displayColumns}}<span class='on checkItem' id='{{name}}'>{{name}}</span>{{/displayColumns}}</div><div id='members'><b>Members: </b>{{#members}}<span class='on checkItem' id='{{id}}'>{{fullName}}</span>{{/members}}</div></div><span class='button downloader' id='submitOptions'>Submit Options</span>";
     var str=Mustache.render(template,board);
     $("#view").html(str);
+    $("#submitOptions").click(function(){
+      var options = {members:"all", lists:"all", labels:"all", columns:"all"};
+      _.each($("#options").children(), function(option){
+        var ct = $(option).children(".checkItem").length;
+        var on = $(option).children(".on");
+        if(on.length !== ct){
+          var vals = _.map(on, function(val){
+            return $(val).attr("id");
+          });
+          options[$(option).attr("id")] = vals;
+        }
+      });
+      var str = _.chain(options).map(function(val, key){
+        if(_.isString(val)){
+          return key+"="+val;
+        }
+        return key+"="+val.join(",");
+      }).value().join("&");
+      window.location.hash = window.location.hash+"!"+str;
+    });
+    $(".checkItem").click(function(e){
+      $(e.target).toggleClass('on off', 500);
+    });
+    $("#Name").hide();
   });
+}
+
+var filter=function(board, options){
+  board.lists = _.filter(board.lists, function(list){
+    return (options.lists[0] === "all"||_.contains(options.lists, list.id));
+  });
+  board.cards = _.filter(board.cards, function(card){
+    if(options.lists[0]==="all"||_.contains(options.lists, card.idList)){
+      if(options.labels[0]!=="all"){
+        var flag=false;
+        _.each(card.labels, function(label){
+          if(_.contains(options.labels, label.color)){
+            flag=true;
+            return false;
+          }
+        });
+        if(!flag) return false;
+      }
+      if(options.members[0]!=="all"){
+        var flag=false;
+        _.each(card.idMembers, function(member){
+          if(_.contains(options.members, member)){
+            flag=true;
+            return false;
+          }
+        });
+        if(!flag) return false;
+      }
+      return true;
+    }
+    return false;
+  });
+  return board;
+}
+
+var resizeAlgorithm=function(arr, index){
+  if(arr.length > 2){
+    var prev = index - 1, next = index + 1;
+    if(prev < 0) prev = arr.length - 1;
+    if(next > arr.length - 1) next = 0;
+    arr[next] += arr[index]/2;
+    arr[prev] += arr[index]/2;
+  }else if(arr.length == 2){
+    return [arr[0] + arr[1]];
+  }
+  return arr;
 }
 
 var getBoard=function(board, options){
@@ -128,9 +197,7 @@ var getBoard=function(board, options){
 	$("#view").html("<h1>Loading ...OK!!</h1>");
 	window.doc=board; //debug
 	window.title=board.name;
-  board.lists = _.filter(board.lists, function(list){
-    return (options.lists[0] === "all"||_.contains(options.lists, list.id));
-  });
+  board = filter(board, options);
 	_.each(board.cards,function(card){ //iterate on cards
 		_.each(card.idChecklists,function(listId){ //iterate on checklists
 			var list=_.find(board.checklists,function(check){ //Find list
@@ -202,7 +269,36 @@ var getBoard=function(board, options){
 	//
 	// Start Rendering
 	board.displayColumns=["Name","Description","Due Date","Checklists","Members","Labels","Votes"];
-	var htmltemplate="<h1><span id='download'></span><span id='trello-link'></span><span id='printme'></span>{{name}} <span class='right'>{{#formatDate}}now{{/formatDate}}</span></h1>{{#lists}}<table><caption><h2>{{name}} <span class='show right'>{{size}}</span></h2></caption>{{#show}}<col width='20%' /><col width='30%' /><col width='5%' /><col width='25%' /><col width='5%' /><col width='10%' /><col width='5%' /><thead><tr>{{#displayColumns}}<th scope='col'>{{.}}</th>{{/displayColumns}}</tr></thead>{{/show}}<tbody>{{#cards}}<tr><td scope='row'><b>{{name}}</b></td><td><div class='comments'>{{#formatComments}}{{desc}}{{/formatComments}}</div></td><td>{{#formatDate}}{{due}}{{/formatDate}}</td><td>{{#checklist}}<div>{{{.}}}</div>{{/checklist}}</td><td>{{#members}}<div>{{.}}</div>{{/members}}</td><td>{{#labels}}<div class='show {{color}}'>{{name}}&nbsp;</div>{{/labels}}</td><td>{{badges.votes}}</td></tr>{{/cards}}</tbody></table>{{/lists}}";
+  board.sizeColumns = function(){
+    return function(template) {
+      var def={columns:['20', '30', '5', '25', '5', '10', '5']};
+      var track = 0;
+      if(options.columns !== "all"){
+        _.each(board.displayColumns, function(col, index){
+          index = index - track;
+          if(!(_.contains(options.columns, col))){
+            def = resizeAlgorithm(def.columns, index);
+            track ++;
+          }
+        });
+      }
+      console.log(template, def);
+      return Mustache.render(template, def);
+    }
+  }
+  if(options.columns !== "all"){
+    board.displayColumns=options.columns;
+  }
+  board.checkColumn = function(){
+    return function(text){
+      text = text.split(">>");
+      if(_.contains(options.columns, text[0])){
+        return text[1];
+      }
+      return "";
+    }
+  }
+	var htmltemplate="<h1><span id='download'></span><span id='trello-link'></span><span id='printme'></span>{{name}} <span class='right'>{{#formatDate}}now{{/formatDate}}</span></h1>{{#lists}}<table><caption><h2>{{name}} <span class='show right'>{{size}}</span></h2></caption>{{#show}}{{#sizeColumns}}{{#columns}}<col width='{{.}}%' />{{/columns}}{{/sizeColumns}}<thead><tr>{{#displayColumns}}<th scope='col'>{{.}}</th>{{/displayColumns}}</tr></thead>{{/show}}<tbody>{{#cards}}<tr><td scope='row'><b>{{name}}</b></td>{{#checkColumn}}Description>><td><div class='comments'>{{#formatComments}}{{desc}}{{/formatComments}}</div></td>{{/checkColumn}}{{#checkColumn}}Due Date>><td>{{#formatDate}}{{due}}{{/formatDate}}</td>{{/checkColumn}}{{#checkColumn}}Checklists>><td>{{#checklist}}<div>{{{.}}}</div>{{/checklist}}</td>{{/checkColumn}}{{#checkColumn}}Members>><td>{{#members}}<div>{{.}}</div>{{/members}}</td>{{/checkColumn}}{{#checkColumn}}Labels>><td>{{#labels}}<div class='show {{color}}'>{{name}}&nbsp;</div>{{/labels}}</td>{{/checkColumn}}{{#checkColumn}}Votes>><td>{{badges.votes}}</td>{{/checkColumn}}</tr>{{/cards}}</tbody></table>{{/lists}}";
 	var csvtemplate="";//TODO
 
   console.log('rendering',board);
