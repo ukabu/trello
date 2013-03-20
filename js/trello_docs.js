@@ -113,7 +113,7 @@ var listOptions=function(board){
     board.displayColumns = _.map(columns, function(column){
       return {name: column};
     });
-    var template = "<h1>"+title+"</h1><div id='options'><div id='lists'><b>Lists: </b>{{#lists}}<span class='on checkItem' id='{{id}}'>{{name}}</span>{{/lists}}</div><div id='labels'><b>Labels: </b>{{#labels}}<span class='on checkItem {{color}}' id='{{color}}'>{{name}}</span>{{/labels}}</div><div id='columns'><b>Columns: </b>{{#displayColumns}}<span class='on checkItem' id='{{name}}'>{{name}}</span>{{/displayColumns}}</div><div id='members'><b>Members: </b>{{#members}}<span class='on checkItem' id='{{id}}'>{{fullName}}</span>{{/members}}</div></div><span class='button downloader' id='submitOptions'>Submit Options</span>";
+    var template = "<h1>"+title+"</h1><div id='options'><div id='lists'><b>Lists: </b>{{#lists}}<span class='off checkItem' id='{{id}}'>{{name}}</span>{{/lists}}</div><div id='labels'><b>Labels: </b>{{#labels}}<span class='off checkItem {{color}}' id='{{color}}'>{{name}}</span>{{/labels}}</div><div id='columns'><b>Columns: </b>{{#displayColumns}}<span class='off checkItem' id='{{name}}'>{{name}}</span>{{/displayColumns}}</div><div id='members'><b>Members: </b>{{#members}}<span class='off checkItem' id='{{id}}'>{{fullName}}</span>{{/members}}</div></div><span class='button downloader' id='submitOptions'>Submit Options</span>";
     var str=Mustache.render(template,board);
     $("#view").html(str);
     $("#submitOptions").click(function(){
@@ -121,7 +121,7 @@ var listOptions=function(board){
       _.each($("#options").children(), function(option){
         var ct = $(option).children(".checkItem").length;
         var on = $(option).children(".on");
-        if(on.length !== ct){
+        if(on.length !== ct && on.length != 0){
           var vals = _.map(on, function(val){
             return $(val).attr("id");
           });
