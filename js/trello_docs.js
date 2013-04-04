@@ -2,7 +2,9 @@
 if (typeof console === "undefined" || typeof console.log === "undefined") { //Fix IE window.console bug
  console = {};
  console.log = function() {};
-} 
+}
+
+savedOptions = false;
 
 $(document).ready(function(){
 	var defaultOptions = {
@@ -108,8 +110,10 @@ var listOptions=function(board){
     window.title=board.name + " Options";
     var columns=["Name","Description","Due Date","Checklists","Members","Labels","Votes"];
     board.labels = _.map(board.labelNames, function(label, color){
-      return {name: label, color: color};
+      return {name: label || "Unnamed", color: color};
     });
+    board.labels.push({name:"Unlabeled", color: "white"});
+    console.log(board.labels);
     board.displayColumns = _.map(columns, function(column){
       return {name: column};
     });
@@ -128,6 +132,7 @@ var listOptions=function(board){
           options[$(option).attr("id")] = vals;
         }
       });
+      savedOptions = options;
       var str = _.chain(options).map(function(val, key){
         if(_.isString(val)){
           return key+"="+val;
@@ -137,9 +142,19 @@ var listOptions=function(board){
       window.location.hash = window.location.hash+"!"+str;
     });
     $(".checkItem").click(function(e){
-      $(e.target).toggleClass('on off', 500);
+      $(e.target).toggleClass('on off');
     });
     $("#Name").hide();
+    if(savedOptions){
+      _.each(savedOptions, function(val, option){
+        if(val !== "all"){
+          _.each(val, function(id){
+            $("#"+id).toggleClass('on off');
+            console.log(id);
+          });
+        }
+      });
+    }
   });
 }
 
@@ -151,13 +166,15 @@ var filter=function(board, options){
     if(options.lists[0]==="all"||_.contains(options.lists, card.idList)){
       if(options.labels[0]!=="all"){
         var flag=false;
-        _.each(card.labels, function(label){
-          if(_.contains(options.labels, label.color)){
-            flag=true;
-            return false;
-          }
-        });
-        if(!flag) return false;
+        if(card.labels.length !== 0 || !_.contains(options.labels, "white")){
+          _.each(card.labels, function(label){
+            if(_.contains(options.labels, label.color)){
+              flag=true;
+              return false;
+            }
+          });
+          if(!flag) return false;
+        }
       }
       if(options.members[0]!=="all"){
         var flag=false;
@@ -225,7 +242,7 @@ var getBoard=function(board, options){
 				});
 			});
 			list.done=(list.doneNumber==list.totalNumber);
-			var template="<div><b>{{name}}</b> <span class='show right {{#done}}green{{/done}}'>{{doneNumber}}/{{totalNumber}}</span></div><ul>{{#checkItems}}<li>{{#complete}}<del>{{/complete}}{{name}}{{#complete}}</del>{{/complete}}</li>{{/checkItems}}</ul>";
+			var template="<div class='checklists'><b>{{name}}</b> <span class='show right {{#done}}green{{/done}}'>{{doneNumber}}/{{totalNumber}}</span></div><ul class='checklists'>{{#checkItems}}<li>{{#complete}}<del>{{/complete}}{{name}}{{#complete}}</del>{{/complete}}</li>{{/checkItems}}</ul>";
 			var str=Mustache.render(template,list);
 
 			card.checklist=card.checklist||[]; //Make array
@@ -275,24 +292,25 @@ var getBoard=function(board, options){
 	// Start Rendering
 	var defs=["Name","Description","Due Date","Checklists","Members","Labels","Votes"];
   board.sizeColumns = function(){
-    return function(template) {
-      template = "{{#columns}}<col width='{{.}}%' />{{/columns}}";
-      var def={columns:[20, 30, 5, 25, 5, 10, 5]};
-      var track = 0;
-      if(options.columns[0] !== "all"){
-        _.each(defs, function(col, index){
-          index = index - track;
-          if(!(_.contains(options.columns, col))){
-            def.columns = resizeAlgorithm(def.columns, index);
-            track ++;
-          }
-        });
-      }
-      return Mustache.render(template, def);
+    var def={columns:[20, 25, 5, 20, 15, 10, 5]};
+    var track = 0;
+    if(options.columns[0] !== "all"){
+      _.each(defs, function(col, index){
+        index = index - track;
+        if(!(_.contains(options.columns, col)) && col !== "Name"){
+          def.columns = resizeAlgorithm(def.columns, index);
+          track ++;
+        }
+      });
     }
+    _.each(def.columns, function(val, index){
+      console.log(index);
+      $(".table").find(".td:nth-child("+ (index+1) +")").width(val+"%");
+      $(".table").find(".th:nth-child("+ (index+1) +")").width(val+"%");
+    });
   }
   if(options.columns[0] !== "all"){
-    board.displayColumns=options.columns;
+    board.displayColumns=["Name"].concat(options.columns);
   } else {
     board.displayColumns=defs;
   }
@@ -305,7 +323,7 @@ var getBoard=function(board, options){
       return "";
     }
   }
-	var htmltemplate="<h1><span id='download'></span><span id='trello-link'></span><span id='printme'></span>{{name}} <span class='right'>{{#formatDate}}now{{/formatDate}}</span></h1>{{#lists}}<table><caption><h2>{{name}} <span class='show right'>{{size}}</span></h2></caption>{{#show}}{{#sizeColumns}}{{/sizeColumns}}<thead><tr>{{#displayColumns}}<th scope='col'>{{.}}</th>{{/displayColumns}}</tr></thead>{{/show}}<tbody>{{#cards}}<tr><td scope='row'><b>{{name}}</b></td>{{#checkColumn}}Description>><td><div class='comments'>{{#formatComments}}{{desc}}{{/formatComments}}</div></td>{{/checkColumn}}{{#checkColumn}}Due Date>><td>{{#formatDate}}{{due}}{{/formatDate}}</td>{{/checkColumn}}{{#checkColumn}}Checklists>><td>{{#checklist}}<div>{{{.}}}</div>{{/checklist}}</td>{{/checkColumn}}{{#checkColumn}}Members>><td>{{#members}}<div>{{.}}</div>{{/members}}</td>{{/checkColumn}}{{#checkColumn}}Labels>><td>{{#labels}}<div class='show {{color}}'>{{name}}&nbsp;</div>{{/labels}}</td>{{/checkColumn}}{{#checkColumn}}Votes>><td>{{badges.votes}}</td>{{/checkColumn}}</tr>{{/cards}}</tbody></table>{{/lists}}";
+	var htmltemplate="<h1><span id='download'></span><span id='trello-link'></span><span id='printme'></span>{{name}} <span class='right'>{{#formatDate}}now{{/formatDate}}</span></h1>{{#lists}}<div class='table'><div class='caption'><h2>{{name}} <span class='show right'>{{size}}</span></h2></div>{{#show}}<div class='thead'><div class='tr'>{{#displayColumns}}<div class='th'>{{.}}</div>{{/displayColumns}}</div></div>{{/show}}<div class='tbody'>{{#cards}}<div class='tr'><div class='td name'><b>{{name}}</b></div>{{#checkColumn}}Description>><div class='td'><div class='comments'>{{#formatComments}}{{desc}}{{/formatComments}}</div></div>{{/checkColumn}}{{#checkColumn}}Due Date>><div class='td due'>{{#formatDate}}{{due}}{{/formatDate}}</div>{{/checkColumn}}{{#checkColumn}}Checklists>><div class='td checklists'>{{#checklist}}<div>{{{.}}}</div>{{/checklist}}</div>{{/checkColumn}}{{#checkColumn}}Members>><div class='td members'>{{#members}}<div>{{.}}</div>{{/members}}</div>{{/checkColumn}}{{#checkColumn}}Labels>><div class='td labels'>{{#labels}}<div class='show {{color}}'>{{name}}&nbsp;</div>{{/labels}}</div>{{/checkColumn}}{{#checkColumn}}Votes>><div class='td votes'>{{badges.votes}}</div>{{/checkColumn}}</div>{{/cards}}</div></div>{{/lists}}";
 	var csvtemplate="";//TODO
 
   console.log('rendering',board);
@@ -337,6 +355,8 @@ var getBoard=function(board, options){
 	button3.click(function(){
 		print();
 	});
+
+  board.sizeColumns();
 
 	//button.click(function(){location.href="data:text/html;charset=utf-8,"+encodeURIComponent(download);});
 	});
