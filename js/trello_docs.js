@@ -48,22 +48,23 @@ var router=function(){
 	if (hash!=="")
 	{
     var hashArray = hash.split("!");
-    if(hashArray[1]){
-		  getBoard(hashArray[0], _.chain(hashArray[1].split("&")).map(function(option){
-        option = option.split("=");
-        option[1] = option[1].split(",");
-        return option;
-      }).object().value());
-    } else {
-      listOptions(hashArray[0]);
-    }
-	}else {
-		if(window.myself){
+    var boardId = hashArray[0]
+    myself.selectedBoard = _.find(myself.boards, function(board) { return board.id == boardId })
+    
+	  getBoard(boardId, _.chain((hashArray[1] || "members=all&lists=all&labels=all&columns=all").split("&")).map(function(option){
+      option = option.split("=");
+      option[1] = option[1].split(",");
+      return option;
+    }).object().value());
+	} else {
+    myself.selectedBoard = null
+    if(window.myself){
 			listBoards();
 		}else{
 			initDoc();
 		}
 	}
+  $("#selected-board").html(Mustache.render($("#selected-board-template").html(), myself))
 };
 
 var listBoards=function(){
@@ -91,20 +92,14 @@ var listBoards=function(){
 	}
 
 	$("#view").empty();
-	var intro="<div class='list info-list'><h2>About Trello2HTML</h2><p>This is an web app to export Trello Boards to HTML, our team uses this to record our progress every month. We do not track or record you any way, and Trello access is read-only. You can host this on any static server. Google Chrome is tested and supported, your mileage may vary with other browsers(Firefox has a bug when downloading).</p><ul><a href='#4d5ea62fd76aa1136000000c'><li>Demo using Trello Development</li></a><a href='trello.zip'><li>Download zipped source</li></a><a href='https://trello.com/board/trello2html/4fb10d0e312c2b226f1eb4a0'><li>Feature Requests and Bug Reports</li></a><a href='http://tianshuohu.diandian.com/post/2012-06-08/Trello-Export-as-html'><li>Blog Article (Chinese/English)</li></a></ul></div>";
-	var template="<h1>{{fullName}} ({{username}})</h1><div id='boardlist'>"+intro+"{{#orgBoards}}<div class='list'><h2>{{name}}</h2><ul>{{#boards}}<a href='#{{id}}' ><li>{{name}}</li></a>{{/boards}}</ul></div>{{/orgBoards}}</div>";
-	var str=Mustache.render(template,myself);
-	$("#view").html(str);
-	$("#boardlist").masonry({
-		itemSelector:'.list'
-	});
-
+  var boardMenuTemplate = $("#board-menu-template").html()
+  $("#view").html(Mustache.render(boardMenuTemplate, myself))
 };
 
 var listOptions=function(board){
   $("#view").empty();
   $("#view").html("<h1>Loading ...</h1>");
-  Trello.get("/boards/"+board,{cards:"open",lists:"open",checklists:"all",members:"all"},function(board){
+  Trello.get("/boards/"+board,{cards:"open",lists:"open",checklists:"all",members:"all",actions:"all"},function(board){
     $("#view").html("<h1>Loading ...OK!!</h1>");
     window.doc=board; //debug
     window.title=board.name + " Options";
@@ -215,12 +210,13 @@ var getBoard=function(board, options){
   console.log(options);
   $("#view").empty();
   $("#view").html("<h1>Loading ...</h1>");
-  Trello.get("/boards/"+board,{cards:"open",lists:"open",checklists:"all",members:"all"},function(board){
+  Trello.get("/boards/"+board,{cards:"open",lists:"open",checklists:"all",members:"all",actions:"all"},function(board){
 	$("#view").html("<h1>Loading ...OK!!</h1>");
 	window.doc=board; //debug
 	window.title=board.name;
   board = filter(board, options);
 	_.each(board.cards,function(card){ //iterate on cards
+    card.description = card.desc == "" ? [] : [card.desc]  // this way we can skip rendering block when desc is empty
 		_.each(card.idChecklists,function(listId){ //iterate on checklists
 			var list=_.find(board.checklists,function(check){ //Find list
 				return check.id==listId;
@@ -255,6 +251,10 @@ var getBoard=function(board, options){
 			});
 			return member.username;
 		});// iterate on members
+
+    card.actions = _.filter(board.actions, function(action) {
+      return action.type == "commentCard" && action.data.card && card.id == action.data.card.id
+    })
 	});//iterate on cards
 
 	// Second Init Cards
@@ -281,13 +281,17 @@ var getBoard=function(board, options){
 			default:
 				date=new Date(text);
 			}
-			return date.getFullYear()+"-"+(date.getMonth()+1)+"-"+date.getDate();
+			return date.getFullYear()+"-"+(date.getMonth()+1)+"-"+date.getDate()+" "+date.getHours()+":"+date.getMinutes();
 		};
 	};
 	board.formatComments=function(){
-		var converter = new Showdown.converter();
-		return converter.makeHtml;
-	};		
+    var converter = new Showdown.converter();
+    return function(text, render) {
+      return converter.makeHtml(render(text))
+    }
+	};
+
+
 	//
 	// Start Rendering
 	var defs=["Name","Description","Due Date","Checklists","Members","Labels","Votes"];
@@ -305,8 +309,8 @@ var getBoard=function(board, options){
     }
     _.each(def.columns, function(val, index){
       console.log(index);
-      $(".table").find(".td:nth-child("+ (index+1) +")").width(val+"%");
-      $(".table").find(".th:nth-child("+ (index+1) +")").width(val+"%");
+      $(".lists").find(".td:nth-child("+ (index+1) +")").width(val+"%");
+      $(".lists").find(".th:nth-child("+ (index+1) +")").width(val+"%");
     });
   }
   if(options.columns[0] !== "all"){
@@ -323,7 +327,7 @@ var getBoard=function(board, options){
       return "";
     }
   }
-	var htmltemplate="<h1><span id='download'></span><span id='trello-link'></span><span id='printme'></span>{{name}} <span class='right'>{{#formatDate}}now{{/formatDate}}</span></h1>{{#lists}}<div class='table'><div class='caption'><h2>{{name}} <span class='show right'>{{size}}</span></h2></div>{{#show}}<div class='thead'><div class='tr'>{{#displayColumns}}<div class='th'>{{.}}</div>{{/displayColumns}}</div></div>{{/show}}<div class='tbody'>{{#cards}}<div class='tr'><div class='td name'><b>{{name}}</b></div>{{#checkColumn}}Description>><div class='td'><div class='comments'>{{#formatComments}}{{desc}}{{/formatComments}}</div></div>{{/checkColumn}}{{#checkColumn}}Due Date>><div class='td due'>{{#formatDate}}{{due}}{{/formatDate}}</div>{{/checkColumn}}{{#checkColumn}}Checklists>><div class='td checklists'>{{#checklist}}<div>{{{.}}}</div>{{/checklist}}</div>{{/checkColumn}}{{#checkColumn}}Members>><div class='td members'>{{#members}}<div>{{.}}</div>{{/members}}</div>{{/checkColumn}}{{#checkColumn}}Labels>><div class='td labels'>{{#labels}}<div class='show {{color}}'>{{name}}&nbsp;</div>{{/labels}}</div>{{/checkColumn}}{{#checkColumn}}Votes>><div class='td votes'>{{badges.votes}}</div>{{/checkColumn}}</div>{{/cards}}</div></div>{{/lists}}";
+	var htmltemplate=$("#board-template").html();
 	var csvtemplate="";//TODO
 
   console.log('rendering',board);

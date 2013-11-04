@@ -1,21 +1,127 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta charset="utf-8" />
 <meta name="author" content="TiansHUo tianshuo_at_gmail_dot_com, extended by Kasey McKenna kmckenna525_at_gmail_dot_com" />
 <link rel="icon" href="favicon.png" />
 <link href='http://fonts.googleapis.com/css?family=Merriweather+Sans:400,700' rel='stylesheet' type='text/css'>
+<link href="css/bootstrap.min.css" rel="stylesheet" media="all">
+<!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+<!--[if lt IE 9]>
+  <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+  <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+<![endif]-->
+
 <title>Export Trello Docs</title>
-<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
-<script type="text/javascript" src="https://api.trello.com/1/client.js?key=b71de204f479bb953c59f8eabd394c95"></script><!-- Please use your own key-->
-<script type="text/javascript" src="js/vendor/jquery-ui-1.8.11.custom.min.js"></script>
-<script type="text/javascript" src="js/vendor/jquery.masonry.min.js"></script>
-<script type="text/javascript" src="js/vendor/underscore-min.js"></script>
-<script type="text/javascript" src="js/vendor/mustache.js"></script>
-<script type="text/javascript" src="js/vendor/blobbuilder.js"></script>
-<script type="text/javascript" src="js/vendor/filesaver.js"></script>
-<script type="text/javascript" src="js/vendor/showdown.js"></script>
-<script type="text/javascript" src="js/trello_docs.js"></script>
+
+<script type="text/template" id="selected-board-template">
+{{#selectedBoard}}
+{{name}}
+{{/selectedBoard}}
+{{^selectedBoard}}
+<span class="glyphicon glyphicon-arrow-down"></span> Please select a board <span class="glyphicon glyphicon-arrow-down"></span>
+{{/selectedBoard}}
+</script>
+
+<script type="text/template" id="board-menu-template">
+<div class="row">
+{{#orgBoards}}
+
+<div class="col-md-6">
+  <div class="panel panel-default">
+    <!-- Default panel contents -->
+    <div class="panel-heading">{{name}}</div>
+    <ul class="list-group">
+      {{#boards}}
+      <li class="list-group-item"><a href="#{{id}}">{{name}}</a></li>
+      {{/boards}}
+    </ul>
+  </div>
+</div>
+{{/orgBoards}}
+</div>
+</script>
+
+<script type="text/template" id="board-template">
+{{#lists}}
+  <div class="panel panel-default">
+    <!-- Default panel contents -->
+    <div class="panel-heading">{{name}} <span class="badge pull-right">{{cards.length}}</span></div>
+    <div class="panel-body">
+      {{#cards}}
+
+        <div class="panel panel-default">
+          <div class="panel-heading">{{name}}</div>
+          {{#description}}
+          <div class="panel-body">
+          {{#formatComments}}{{.}}{{/formatComments}}
+          </div>
+          {{/description}}
+          {{#actions.length}}
+          <ul class="list-group">
+            {{#actions}}
+              <li class="list-group-item">{{memberCreator.fullName}} ({{#formatDate}}{{date}}{{/formatDate}}) : {{#formatComments}}{{data.text}}{{/formatComments}}</li>
+            {{/actions}}
+          </ul>
+          {{/actions.length}}
+        </div>
+      {{/cards}}
+    </div>
+  </div>
+{{/lists}}
+</script>
+
+<script type="text/template" id="htmlTemplate-deprecated">
+<h1>
+    <span id='download'></span>
+    <span id='trello-link'></span>
+    <span id='printme'></span>{{name}}
+    <span class='right'>{{#formatDate}}now{{/formatDate}}</span>
+</h1>
+{{#lists}}
+<div class='table lists'>
+    <div class='caption'>
+        <h2>{{name}}
+            <span class='show right'>{{size}}</span>
+        </h2>
+    </div>{{#show}}
+    <div class='thead'>
+        <div class='tr'>{{#displayColumns}}
+            <div class='th'>{{.}}</div>{{/displayColumns}}</div>
+    </div>{{/show}}
+    <div class='tbody'>
+      {{#cards}}
+        <div class='tr'>
+            <div class='td name'><a name="{{id}}"><b>{{name}}</b></a>
+            </div>{{#checkColumn}}Description>>
+            <div class='td'>
+                <div class='comments'>{{#formatComments}}{{desc}}{{/formatComments}}</div>
+            </div>{{/checkColumn}}{{#checkColumn}}Due Date>>
+            <div class='td due'>{{#formatDate}}{{due}}{{/formatDate}}</div>{{/checkColumn}}{{#checkColumn}}Checklists>>
+            <div class='td checklists'>{{#checklist}}
+                <div>{{{.}}}</div>{{/checklist}}</div>{{/checkColumn}}{{#checkColumn}}Members>>
+            <div class='td members'>{{#members}}
+                <div>{{.}}</div>{{/members}}</div>{{/checkColumn}}{{#checkColumn}}Labels>>
+            <div class='td labels'>{{#labels}}
+                <div class='show {{color}}'>{{name}}&nbsp;</div>{{/labels}}</div>{{/checkColumn}}{{#checkColumn}}Votes>>
+            <div class='td votes'>{{badges.votes}}</div>{{/checkColumn}}</div>
+            <div class='history'>
+              <dl>
+                {{#actions}}
+                  <dt>{{memberCreator.fullName}} ({{#formatDate}}{{date}}{{/formatDate}})</dt>
+                  <dd class="comments">
+                    {{#formatComments}}{{data.text}}{{/formatComments}}</div>
+                  </dd>
+                {{/actions}}
+              </dl>
+            </div>
+      {{/cards}}
+    </div>
+</div>
+{{/lists}}
+</script>
 <style>
 .show{
 	background-color:#777;
@@ -45,6 +151,13 @@
 del{
 color:green
 }
+
+.history .td:nth-child(1) { width: 20%;}
+.history .td:nth-child(2) {width: : 5%;}
+.history .td:nth-child(3) {width: 70%;}
+.history .th:nth-child(1) { width: 20%;}
+.history .th:nth-child(2) {width: : 5%;}
+.history .th:nth-child(3) {width: 70%;}
 
 .table {
   border:1 #164B69;
@@ -304,7 +417,37 @@ span.checkItem:hover{
 
 </head>
 <body>
-<div id="view">
+<nav class="navbar navbar-default" role="navigation">
+  <!-- Brand and toggle get grouped for better mobile display -->
+  <div class="navbar-header">
+    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+      <span class="sr-only">Toggle navigation</span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </button>
+    <p class="navbar-text ">Trello Viewer</p>
+  </div>
+    <!-- Collect the nav links, forms, and other content for toggling -->
+  <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+    <ul class="nav navbar-nav navbar-center">
+      <li><p class="navbar-text" id="selected-board"></p></li>
+    </ul>
+  </div><!-- /.navbar-collapse -->
+</nav>
+
+<div id="view" class="container">
 </div>
+
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://api.trello.com/1/client.js?key=b71de204f479bb953c59f8eabd394c95"></script><!-- Please use your own key-->
+<script src="js/bootstrap.min.js"></script>
+<script type="text/javascript" src="js/vendor/underscore-min.js"></script>
+<script type="text/javascript" src="js/vendor/mustache.js"></script>
+<script type="text/javascript" src="js/vendor/blobbuilder.js"></script>
+<script type="text/javascript" src="js/vendor/filesaver.js"></script>
+<script type="text/javascript" src="js/vendor/showdown.js"></script>
+<script type="text/javascript" src="js/trello_docs.js"></script>
+
 </body>
 </html>
