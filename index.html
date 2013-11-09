@@ -7,6 +7,7 @@
 <link rel="icon" href="favicon.png" />
 <link href='http://fonts.googleapis.com/css?family=Merriweather+Sans:400,700' rel='stylesheet' type='text/css'>
 <link href="css/bootstrap.min.css" rel="stylesheet" media="all">
+<link href="css/print.css" rel="stylesheet" media="print">
 <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
 <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
 <!--[if lt IE 9]>
@@ -23,54 +24,6 @@
 {{^selectedBoard}}
 <span class="glyphicon glyphicon-arrow-down"></span> Please select a board <span class="glyphicon glyphicon-arrow-down"></span>
 {{/selectedBoard}}
-</script>
-
-<script type="text/template" id="board-menu-template">
-<div class="row">
-{{#orgBoards}}
-
-<div class="col-md-6">
-  <div class="panel panel-default">
-    <!-- Default panel contents -->
-    <div class="panel-heading">{{name}}</div>
-    <ul class="list-group">
-      {{#boards}}
-      <li class="list-group-item"><a href="#{{id}}">{{name}}</a></li>
-      {{/boards}}
-    </ul>
-  </div>
-</div>
-{{/orgBoards}}
-</div>
-</script>
-
-<script type="text/template" id="board-template">
-{{#lists}}
-  <div class="panel panel-default">
-    <!-- Default panel contents -->
-    <div class="panel-heading">{{name}} <span class="badge pull-right">{{size}}</span></div>
-    <div class="panel-body">
-      {{#cards}}
-
-        <div class="panel panel-default">
-          <div class="panel-heading">{{name}}</div>
-          {{#description}}
-          <div class="panel-body">
-          {{#formatComments}}{{.}}{{/formatComments}}
-          </div>
-          {{/description}}
-          {{#actions.length}}
-          <ul class="list-group">
-            {{#actions}}
-              <li class="list-group-item">{{memberCreator.fullName}} ({{#formatDate}}{{date}}{{/formatDate}}) : {{#formatComments}}{{data.text}}{{/formatComments}}</li>
-            {{/actions}}
-          </ul>
-          {{/actions.length}}
-        </div>
-      {{/cards}}
-    </div>
-  </div>
-{{/lists}}
 </script>
 
 <script type="text/template" id="htmlTemplate-deprecated">
@@ -124,37 +77,22 @@
 </script>
 </head>
 <body>
-<nav class="navbar navbar-default" role="navigation">
-  <!-- Brand and toggle get grouped for better mobile display -->
-  <div class="navbar-header">
-    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
-      <span class="sr-only">Toggle navigation</span>
-      <span class="icon-bar"></span>
-      <span class="icon-bar"></span>
-      <span class="icon-bar"></span>
-    </button>
-    <p class="navbar-text ">Trello Viewer</p>
-  </div>
-    <!-- Collect the nav links, forms, and other content for toggling -->
-  <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-    <ul class="nav navbar-nav navbar-center">
-      <li><p class="navbar-text" id="selected-board"></p></li>
-    </ul>
-  </div><!-- /.navbar-collapse -->
-</nav>
 
-<div id="view" class="container">
+<div id="app">
 </div>
 
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
 <script type="text/javascript" src="https://api.trello.com/1/client.js?key=b71de204f479bb953c59f8eabd394c95"></script><!-- Please use your own key-->
 <script src="js/bootstrap.min.js"></script>
+<script src="bower_components/react/react-with-addons.js"></script>
 <script type="text/javascript" src="js/vendor/underscore-min.js"></script>
-<script type="text/javascript" src="js/vendor/mustache.js"></script>
 <script type="text/javascript" src="js/vendor/blobbuilder.js"></script>
 <script type="text/javascript" src="js/vendor/filesaver.js"></script>
-<script type="text/javascript" src="js/vendor/showdown.js"></script>
-<script type="text/javascript" src="js/trello_docs.js"></script>
-
+<script type="text/javascript" src="bower_components/showdown/compressed/showdown.js"></script>
+<script type="text/javascript" src="bower_components/director/build/director.min.js"></script>
+<script type="text/javascript" src="build/trello-ui.js"></script>
+<script>
+React.renderComponent(App(), $("#app").get(0))
+</script>
 </body>
 </html>

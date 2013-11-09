@@ -1,3 +1,4 @@
 *.bak
 *.sublime-project
 *.sublime-workspace
+build/.module-cache

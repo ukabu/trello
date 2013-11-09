@@ -1,0 +1,26 @@
+{
+  "name": "trello",
+  "version": "0.0.0",
+  "homepage": "https://github.com/ukabu/trello",
+  "authors": [
+    "Emmanuel Pirsch <emmanuel@pirsch.org>"
+  ],
+  "description": "Trello viewer",
+  "main": "index.html",
+  "keywords": [
+    "trello"
+  ],
+  "license": "AGPL",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "react": "~0.5.1",
+    "showdown": "~0.3.1",
+    "director": "~1.2.0"
+  }
+}
